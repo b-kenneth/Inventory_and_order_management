@@ -1,0 +1,81 @@
+-- Create Products Table
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    product_name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL CHECK (price > 0),
+    stock_quantity INT NOT NULL CHECK (stock_quantity >= 0),
+    reorder_level INT NOT NULL CHECK (reorder_level >= 0)
+);
+
+-- Create Customers Table
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
+    customer_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(50)
+);
+
+-- Create Orders Table
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(10, 2) CHECK (total_amount >= 0),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
+);
+
+-- Create Order Details Table
+CREATE TABLE order_details (
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL CHECK (quantity > 0),
+    price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
+    PRIMARY KEY (order_id, product_id),
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
+
+-- Create Inventory Logs Table
+CREATE TABLE inventory_logs (
+    log_id SERIAL PRIMARY KEY,
+    product_id INT NOT NULL,
+    change_amount INT NOT NULL,
+    new_stock_quantity INT NOT NULL,
+    log_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    change_type VARCHAR(50) CHECK (change_type IN ('order', 'replenish', 'adjustment')),
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
+
+
+
+-- SAMPLE DATA
+-- Insert a product
+INSERT INTO products (product_name, category, price, stock_quantity, reorder_level)
+VALUES ('Wireless Mouse', 'Electronics', 29.99, 100, 20);
+
+-- Insert a customer
+INSERT INTO customers (customer_name, email, phone)
+VALUES ('John Doe', 'john.doe@example.com', '+1234567890');
+
+-- Insert an order
+INSERT INTO orders (customer_id, total_amount)
+VALUES (1, 29.99);
+
+-- Insert order details
+INSERT INTO order_details (order_id, product_id, quantity, price)
+VALUES (1, 1, 1, 29.99);
+
+
+
+-- VERIFY CONSTRAINTS
+-- This should fail due to negative stock_quantity
+INSERT INTO products (product_name, category, price, stock_quantity, reorder_level)
+VALUES ('Test Product', 'Test', 10.00, -5, 0);
+
+
+-- CHECK RELATIONSHIPS
+-- This should fail because customer_id 999 doesn't exist
+INSERT INTO orders (customer_id, total_amount)
+VALUES (999, 100.00);
+
