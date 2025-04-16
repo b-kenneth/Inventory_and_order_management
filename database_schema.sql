@@ -49,23 +49,6 @@ CREATE TABLE inventory_logs (
 
 
 
--- SAMPLE DATA
--- Insert a product
-INSERT INTO products (product_name, category, price, stock_quantity, reorder_level)
-VALUES ('Wireless Mouse', 'Electronics', 29.99, 100, 20);
-
--- Insert a customer
-INSERT INTO customers (customer_name, email, phone)
-VALUES ('John Doe', 'john.doe@example.com', '+1234567890');
-
--- Insert an order
-INSERT INTO orders (customer_id, total_amount)
-VALUES (1, 29.99);
-
--- Insert order details
-INSERT INTO order_details (order_id, product_id, quantity, price)
-VALUES (1, 1, 1, 29.99);
-
 
 
 -- VERIFY CONSTRAINTS
