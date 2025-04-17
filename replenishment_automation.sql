@@ -1,30 +1,43 @@
--- Stock below reorder level
-SELECT 
-    product_id, 
-    product_name, 
-    stock_quantity, 
-    reorder_level
-FROM products
-WHERE stock_quantity < reorder_level;
+-- Automated Stock replenishment
+CREATE OR REPLACE FUNCTION auto_replenish_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_replenish_amount INT := 100; -- Default amount to replenish, could be made dynamic
+BEGIN
+    -- Check if stock has fallen below reorder level
+    IF NEW.stock_quantity < NEW.reorder_level THEN
+        -- Update the stock (without triggering the other logging trigger again)
+        NEW.stock_quantity := NEW.stock_quantity + v_replenish_amount;
+        
+        -- Log the replenishment directly
+        INSERT INTO inventory_logs (
+            product_id, 
+            change_amount, 
+            new_stock_quantity, 
+            change_type
+        ) VALUES (
+            NEW.product_id,
+            v_replenish_amount,
+            NEW.stock_quantity,
+            'replenish'
+        );
+        
+        -- Optional: Log activity for monitoring
+        RAISE NOTICE 'Auto-replenished product ID % with % units', NEW.product_id, v_replenish_amount;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- Replenish and Log the change
--- 1. Update the stock quantity
-UPDATE products
-SET stock_quantity = stock_quantity + 100
-WHERE product_id = 1;
-
--- 2. Log the replenishment in inventory_logs
-INSERT INTO inventory_logs (product_id, change_amount, new_stock_quantity, change_type)
-SELECT 
-    1,
-    100,
-    stock_quantity,
-    'replenish'
-FROM products
-WHERE product_id = 1;
+CREATE TRIGGER trg_auto_replenish
+BEFORE UPDATE OF stock_quantity ON products
+FOR EACH ROW
+WHEN (NEW.stock_quantity < NEW.reorder_level)
+EXECUTE FUNCTION auto_replenish_stock();
 
 
--- Automate
+-- Update Inventory logs
 CREATE OR REPLACE FUNCTION log_inventory_change()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -66,21 +79,27 @@ ORDER BY log_timestamp DESC
 LIMIT 5;
 
 
-
--- Categorize customers based on their spending habits
--- Run this regularly or use in reporting
-SELECT 
-    c.customer_id,
-    c.customer_name,
-    COALESCE(SUM(o.total_amount), 0) AS total_spent,
-    CASE
-        WHEN COALESCE(SUM(o.total_amount), 0) >= 1000 THEN 'Gold'
-        WHEN COALESCE(SUM(o.total_amount), 0) >= 500 THEN 'Silver'
-        ELSE 'Bronze'
-    END AS spending_tier
-FROM customers c
-LEFT JOIN orders o ON c.customer_id = o.customer_id
-GROUP BY c.customer_id, c.customer_name;
-
-
 -- ** did calculating the total amount for an order already in order procedure
+
+-- Function (Your Current Approach)
+-- Advantage: Calculates tiers dynamically when needed
+
+-- Advantage: Always reflects the latest order data
+
+-- Disadvantage: Recalculates every time, which could affect performance with large datasets
+
+-- Procedure (Storing Tiers)
+-- Advantage: Calculates once and stores the result (better performance for lookups)
+
+-- Advantage: Makes tier information immediately available to other parts of the system
+
+-- Disadvantage: Requires periodic updates to stay current
+
+-- Decision Criteria
+-- You should stick with just your function (and not add the procedure) if:
+
+-- You only need tier information for reports and analytics
+
+-- Real-time accuracy is critical for your business rules
+
+-- Your customer/order volume is relatively small
